@@ -1,0 +1,58 @@
+name: Docker-Builder-Do-Not-Modify
+version: 1
+formatVersion: 1
+inputs: {}
+resources:
+  Cloud_Network_1:
+    type: Cloud.NSX.Network
+    properties:
+      networkType: existing
+      constraints:
+        - tag: net:demo
+  Cloud_Machine_1:
+    type: Cloud.Machine
+    properties:
+      image: ubuntu2204
+      flavor: t.small
+      constraints:
+        - tag: env:sddc
+      networks:
+        - network: ${resource.Cloud_Network_1.id}
+          assignPublicIpAddress: 1
+      cloudConfig: |
+        packages:
+         - curl
+
+        users:
+          - name: demouser
+            sudo: ['ALL=(ALL) NOPASSWD:ALL']
+            groups: sudo
+            shell: /bin/bash
+
+        runcmd:
+          - USER=demouser
+          - PASS=vRealiz3!
+          - echo $USER:$PASS | /usr/sbin/chpasswd
+          - echo $USER:$PASS | /usr/sbin/chpasswd
+          - sed -i "s/PasswordAuthentication no/PasswordAuthentication yes/g" /etc/ssh/sshd_config
+          - service ssh reload
+          - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+          - add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+          - apt-get update
+          - apt-get install -y git
+          - apt-get install -y wget
+          - apt-get install -y curl
+          - apt-get install -y docker-ce
+          - apt-get install -y ca-certificates
+          - git clone https://github.com/postout7979/codestream.git
+          - sleep 15
+          - cd codestream
+          - mv daemon.json /etc/docker/
+          - mv tkgs-harbor.tanzu.lab.pem /etc/ssl/certs/
+          - cd /
+          - rm -rf codestream
+          - update-ca-certificates --fresh
+          - usermod -aG docker demouser
+          - su - demouser
+          - systemctl restart docker
+          - echo "Done" >> /tmp/environment.txt
